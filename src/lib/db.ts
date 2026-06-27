@@ -34,13 +34,27 @@ function writeLocalScores(data: Record<string, ScoreEntry[]>) {
   }
 }
 
+// Helper to get database credentials (supports both Vercel KV and Upstash Redis integration)
+function getKvCredentials(): { url: string | undefined; token: string | undefined } {
+  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  
+  if (url) {
+    // Ensure no trailing slash
+    return {
+      url: url.endsWith("/") ? url.slice(0, -1) : url,
+      token
+    };
+  }
+  return { url, token };
+}
+
 // REST call helper to Vercel KV (Upstash)
 async function runKvCommand(command: any[]): Promise<any> {
-  const url = process.env.KV_REST_API_URL;
-  const token = process.env.KV_REST_API_TOKEN;
+  const { url, token } = getKvCredentials();
 
   if (!url || !token) {
-    throw new Error("Vercel KV credentials missing");
+    throw new Error("Vercel KV / Upstash Redis credentials missing");
   }
 
   const response = await fetch(`${url}/`, {
@@ -69,9 +83,10 @@ export async function submitDailyScore(
   score: number
 ): Promise<void> {
   const key = `leaderboard:${dateStr}`;
+  const { url, token } = getKvCredentials();
 
   // Try Redis KV
-  if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+  if (url && token) {
     try {
       // ZADD with GT (Greater Than) flag - only update score if it is higher
       await runKvCommand(["ZADD", key, "GT", score, username]);
@@ -107,9 +122,10 @@ export async function getDailyLeaderboard(
   dateStr: string
 ): Promise<ScoreEntry[]> {
   const key = `leaderboard:${dateStr}`;
+  const { url, token } = getKvCredentials();
 
   // Try Redis KV
-  if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+  if (url && token) {
     try {
       // Fetch user scores sorted in descending order
       const rawResult = await runKvCommand(["ZREVRANGE", key, 0, 9, "WITHSCORES"]);
