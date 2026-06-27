@@ -73,6 +73,12 @@ export default function Home() {
         try {
           webapp.ready?.();
           webapp.expand?.();
+          if (webapp.setHeaderColor) {
+            webapp.setHeaderColor("#05050d");
+          }
+          if (webapp.setBackgroundColor) {
+            webapp.setBackgroundColor("#05050d");
+          }
           if (webapp.initDataUnsafe?.user?.first_name) {
             setUserName(webapp.initDataUnsafe.user.first_name);
           }
